@@ -1,0 +1,10 @@
+# Top-level plugins for jenkins-plugin-cli.
+workflow-aggregator:608.v67378e9d3db_1
+git:5.11.0
+credentials-binding:728.v902a_273b_8947
+configuration-as-code:2147.v8a_8d38668c72
+job-dsl:3732.v9a_c49a_61a_313
+jfrog:2.0.0
+junit:1458.1460.vd53b_087eeb_2c
+pipeline-stage-view:2.41
+timestamper:1.30

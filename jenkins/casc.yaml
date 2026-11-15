@@ -1,0 +1,92 @@
+# Jenkins Configuration as Code. ${NAME} resolves from the environment or /run/secrets/NAME.
+jenkins:
+  systemMessage: "spring-petclinic CI with JFrog Artifactory (configured by JCasC)"
+  numExecutors: 2
+  mode: NORMAL
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "${jenkins_admin_password}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: JFROG_URL
+            value: "${JFROG_URL}"
+          - key: JFROG_SELFHOSTED_URL
+            value: "${JFROG_SELFHOSTED_URL:-http://artifactory:8082}"
+
+unclassified:
+  location:
+    url: "${JENKINS_LOCATION_URL:-http://localhost:8088/}"
+  jFrogPlatformBuilder:
+    jfrogInstances:
+      - serverId: "jfrog-cloud"
+        url: "${JFROG_URL}"
+        credentialsConfig:
+          credentialsId: "jfrog-cloud-token"
+      - serverId: "jfrog-selfhosted"
+        url: "${JFROG_SELFHOSTED_URL:-http://artifactory:8082}"
+        credentialsConfig:
+          credentialsId: "jfrog-selfhosted-token"
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - string:
+              scope: GLOBAL
+              id: "jfrog-cloud-token"
+              description: "JFrog Cloud access token (JFrog plugin)"
+              secret: "${jfrog_access_token}"
+          - usernamePassword:
+              scope: GLOBAL
+              id: "jfrog-cloud-creds"
+              description: "JFrog Cloud user and the same token (docker login, Maven wrapper)"
+              username: "${JFROG_USER}"
+              password: "${jfrog_access_token}"
+          - string:
+              scope: GLOBAL
+              id: "jfrog-selfhosted-token"
+              description: "Self-hosted Artifactory OSS access token (JFrog plugin)"
+              secret: "${jfrog_selfhosted_token:-}"
+          - usernamePassword:
+              scope: GLOBAL
+              id: "jfrog-selfhosted-creds"
+              description: "Self-hosted Artifactory OSS user and the same token (Maven wrapper)"
+              username: "${JFROG_SELFHOSTED_USER:-admin}"
+              password: "${jfrog_selfhosted_token:-}"
+
+tool:
+  jfrog:
+    installations:
+      - name: "jfrog-cli"
+        home: "/opt/jfrog-cli/bin"
+
+# Keep the parameters in sync with the Jenkinsfile.
+jobs:
+  - script: >
+      pipelineJob('spring-petclinic') {
+        description('Compile, test and package Spring PetClinic as a Docker image, resolving every dependency through JFrog Artifactory.')
+        parameters {
+          choiceParam('ARTIFACTORY_TARGET', ['cloud', 'selfhosted'], 'Artifactory for Maven, the jar and build-info. Docker images always use JFrog Cloud.')
+          choiceParam('IMAGE_PLATFORM', ['linux/amd64', 'linux/arm64'], 'Image architecture, one per build.')
+          booleanParam('XRAY_SCAN', false, 'Scan the build with Xray (JFrog Cloud only).')
+        }
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('${REPO_URL:-file:///repo}') }
+                branch('*/${REPO_BRANCH:-main}')
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(true)
+          }
+        }
+      }

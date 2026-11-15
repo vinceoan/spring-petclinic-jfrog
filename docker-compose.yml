@@ -1,6 +1,9 @@
+# Set COMPOSE_IMAGE_PREFIX (ending in /) to pull the images through a registry mirror.
 services:
   mysql:
-    image: mysql:9.7
+    image: ${COMPOSE_IMAGE_PREFIX:-}mysql:9.7
+    labels:
+      org.springframework.boot.service-connection: mysql
     ports:
       - "3306:3306"
     environment:
@@ -12,7 +15,9 @@ services:
     volumes:
       - "./conf.d:/etc/mysql/conf.d:ro"
   postgres:
-    image: postgres:18.4
+    image: ${COMPOSE_IMAGE_PREFIX:-}postgres:18.4
+    labels:
+      org.springframework.boot.service-connection: postgres
     ports:
       - "5432:5432"
     environment:

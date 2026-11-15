@@ -1,0 +1,3 @@
+# Build context: the jar from target/ only.
+*
+!target/spring-petclinic-*.jar

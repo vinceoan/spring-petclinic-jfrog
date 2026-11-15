@@ -46,3 +46,8 @@ out/
 _site/
 *.css
 !petclinic.css
+
+### Local secrets and jf mvn-config output ###
+.env
+.jfrog/
+.DS_Store

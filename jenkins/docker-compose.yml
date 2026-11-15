@@ -1,0 +1,52 @@
+# Jenkins controller for the petclinic pipeline.
+#
+#   cp .env.example .env
+#   docker compose up -d --build     # http://localhost:8088, user admin
+name: petclinic-ci
+
+services:
+  jenkins:
+    build: .
+    image: petclinic-jenkins:local
+    container_name: petclinic-jenkins
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${JENKINS_PORT:-8088}:8080"
+    # On Linux set DOCKER_GID=$(stat -c %g /var/run/docker.sock) in .env.
+    group_add:
+      - "${DOCKER_GID:-0}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      JENKINS_LOCATION_URL: "http://localhost:${JENKINS_PORT:-8088}/"
+      JFROG_URL: ${JFROG_URL:?set JFROG_URL in jenkins/.env}
+      JFROG_USER: ${JFROG_USER:?set JFROG_USER in jenkins/.env}
+      JFROG_SELFHOSTED_URL: ${JFROG_SELFHOSTED_URL:-http://artifactory:8082}
+      JFROG_SELFHOSTED_USER: ${JFROG_SELFHOSTED_USER:-admin}
+      REPO_URL: ${REPO_URL:-file:///repo}
+      REPO_BRANCH: ${REPO_BRANCH:-main}
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+      SPRING_DOCKER_COMPOSE_HOST: host.docker.internal
+    secrets:
+      - jenkins_admin_password
+      - jfrog_access_token
+      - jfrog_selfhosted_token
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${REPO_PATH:-..}:/repo:ro
+
+volumes:
+  jenkins_home:
+
+secrets:
+  jenkins_admin_password:
+    environment: JENKINS_ADMIN_PASSWORD
+  jfrog_access_token:
+    environment: JFROG_ACCESS_TOKEN
+  jfrog_selfhosted_token:
+    environment: JFROG_SELFHOSTED_TOKEN
+
+networks:
+  default:
+    name: petclinic-ci

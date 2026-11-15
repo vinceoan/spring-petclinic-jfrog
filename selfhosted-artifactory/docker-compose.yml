@@ -1,0 +1,69 @@
+# Self-hosted Artifactory OSS for Maven resolution, jar deploys and build-info.
+#
+#   cp .env.example .env && docker compose up -d && ./setup-repos.sh   # http://localhost:8082/ui/
+name: petclinic-artifactory
+
+services:
+  artifactory-db:
+    image: postgres:${ARTIFACTORY_DB_VERSION:-17.12-alpine}
+    container_name: petclinic-artifactory-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: artifactory
+      POSTGRES_USER: artifactory
+      POSTGRES_PASSWORD: ${ARTIFACTORY_DB_PASSWORD:?set ARTIFACTORY_DB_PASSWORD in selfhosted-artifactory/.env}
+    volumes:
+      - artifactory_db:/var/lib/postgresql/data
+    networks:
+      - artifactory-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U artifactory -d artifactory"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  artifactory:
+    image: releases-docker.jfrog.io/jfrog/artifactory-oss:${ARTIFACTORY_VERSION:-7.161.26}
+    container_name: petclinic-artifactory
+    restart: unless-stopped
+    stop_grace_period: 90s
+    depends_on:
+      artifactory-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8082:8082"
+    environment:
+      JF_SHARED_DATABASE_TYPE: postgresql
+      JF_SHARED_DATABASE_DRIVER: org.postgresql.Driver
+      JF_SHARED_DATABASE_URL: jdbc:postgresql://artifactory-db:5432/artifactory
+      JF_SHARED_DATABASE_USERNAME: artifactory
+      JF_SHARED_DATABASE_PASSWORD: ${ARTIFACTORY_DB_PASSWORD:?set ARTIFACTORY_DB_PASSWORD in selfhosted-artifactory/.env}
+      JF_SHARED_EXTRAJAVAOPTS: "-Xms512m -Xmx${ARTIFACTORY_MAX_HEAP:-2g}"
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 32000
+        hard: 40000
+    volumes:
+      - artifactory_data:/var/opt/jfrog/artifactory
+    networks:
+      - default
+      - artifactory-internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8082/artifactory/api/system/ping | grep -q OK"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+
+volumes:
+  artifactory_data:
+  artifactory_db:
+
+networks:
+  # Created by jenkins/docker-compose.yml: start Jenkins first.
+  default:
+    name: petclinic-ci
+    external: true
+  artifactory-internal:
+    internal: true
