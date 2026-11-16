@@ -17,6 +17,8 @@ docker run --rm -p 8080:8080 spring-petclinic:4.0.0-SNAPSHOT
 
 Open http://localhost:8080 (health at `/actuator/health`).
 
+![PetClinic running from the release image](docs/images/petclinic-app.png)
+
 ## Pipeline
 
 1. Configure JFrog: `jf rt ping`, `jf mvn-config`, Docker login to JFrog Cloud.
